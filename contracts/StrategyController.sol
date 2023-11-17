@@ -29,17 +29,6 @@ contract StrategyController is Ownable {
   }
 
   // ADMIN FUNCTIONS
-
-  function canUpdateStrategy(address _strategy) public view returns(bool) {
-    return strategy == address(0) // no strategy was set yet
-      || (_strategy == futureStrategy
-          && block.timestamp > strategyUpdateTime
-          && strategyUpdateTime > 0); // or the timelock has passed
-  }
-
-  /**
-  * Indicates that the strategy update will happen in the future
-  */
   function announceStrategyUpdate(address _strategy) public onlyOwner {
     // records a new timestamp
     uint256 when = block.timestamp + strategyTimeLock;
@@ -62,8 +51,14 @@ contract StrategyController is Ownable {
     _setFutureStrategy(address(0));
   }
 
-  // INTERNAL FUNCTIONS
+  function canUpdateStrategy(address _strategy) public view returns(bool) {
+    return strategy == address(0) // no strategy was set yet
+      || (_strategy == futureStrategy
+          && block.timestamp > strategyUpdateTime
+          && strategyUpdateTime > 0); // or the timelock has passed
+  }
 
+  // INTERNAL FUNCTIONS
   function _setStrategyTimeLock(uint256 _strategyTimeLock) internal {
     strategyTimeLock = _strategyTimeLock;
   }

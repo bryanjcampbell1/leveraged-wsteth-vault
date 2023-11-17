@@ -96,8 +96,6 @@ describe("LeveragedWstEth - AaveStrategy", function () {
         await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
       ).to.not.be.reverted;
 
-      console.log("preview: ", await vault.previewWithdraw(BigInt(10 ** 18)));
-
       expect(
         await vault
           .connect(user)
@@ -122,4 +120,5 @@ describe("LeveragedWstEth - AaveStrategy", function () {
       ).to.not.be.reverted;
     });
   });
+
 });

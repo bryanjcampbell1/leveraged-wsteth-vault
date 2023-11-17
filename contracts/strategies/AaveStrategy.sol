@@ -24,6 +24,11 @@ contract AaveStrategy is IStrategy, Ownable {
         _;
     }
 
+    modifier onlyVaultOrStrategy() {
+        require(vault == msg.sender || address(this) == msg.sender, "Can only be called by vault or strategy");
+        _;
+    }
+
     modifier onlyManager() {
         require(manager == msg.sender, "Can only be called by manager");
         _;
@@ -66,6 +71,11 @@ contract AaveStrategy is IStrategy, Ownable {
             redeemAmount
         );
 
+        uint256 remaining = IERC20(WSTETH).balanceOf(address(this));
+        if(remaining > 0){
+            _invest(remaining, false);
+        }
+        
         return redeemAmount;
     }
 
@@ -73,10 +83,6 @@ contract AaveStrategy is IStrategy, Ownable {
         _withdrawAllToStrategy();
 
         uint256 totalWstEth = IERC20(WSTETH).balanceOf(address(this));
-
-        console.log("_assets: ", _assets);
-        console.log("totalWstEth: ", totalWstEth);
-
         require(totalWstEth > _assets, "Not enough tokens in strategy"); 
 
         IERC20(WSTETH).transfer(
@@ -84,31 +90,14 @@ contract AaveStrategy is IStrategy, Ownable {
             _assets
         );
 
+        uint256 remaining = IERC20(WSTETH).balanceOf(address(this));
+        if(remaining > 0){
+            _invest(remaining, false);
+        }
     }
 
-    function invest(uint256 _amount) public onlyVault {
-        // Move wstETH funds from Vault to Strategy 
-        IERC20(WSTETH).transferFrom(msg.sender, address(this), _amount);
-
-        // Loan wstETH tokens to Aave 
-        uint bal = IERC20(WSTETH).balanceOf(address(this));
-        IPool(POOL).supply(WSTETH, bal, address(this), 0);
-
-        // Borrow wstETH tokens from Aave 
-        uint256 initialCollateral = _aTokensToWstEth(IERC20(A_TOKEN).balanceOf(address(this)));
-        uint256 borrowAmount = _getBorrowAmount(initialCollateral);
-
-        IPool(POOL).borrow(
-            WSTETH,
-            borrowAmount,
-            2,
-            0,
-            address(this)
-        );
-
-        // Re-invest into the vault to increase leverage
-        bal = IERC20(WSTETH).balanceOf(address(this));
-        IPool(POOL).supply(WSTETH, bal, address(this), 0);
+    function invest(uint256 _amount) public onlyVault{
+        _invest(_amount, true);
     }
 
     function harvest() public onlyVaultOrManager {
@@ -198,6 +187,34 @@ contract AaveStrategy is IStrategy, Ownable {
         );
     }
 
+    function _invest(uint256 _amount, bool _vaultCall) internal{
+        if(_vaultCall){
+            // Move wstETH funds from Vault to Strategy 
+            IERC20(WSTETH).transferFrom(msg.sender, address(this), _amount);
+        }
+        
+        // Loan wstETH tokens to Aave 
+        uint bal = IERC20(WSTETH).balanceOf(address(this));
+        IPool(POOL).supply(WSTETH, bal, address(this), 0);
+
+        
+        // Borrow wstETH tokens from Aave 
+        uint256 initialCollateral = _aTokensToWstEth(IERC20(A_TOKEN).balanceOf(address(this)));
+        uint256 borrowAmount = _getBorrowAmount(initialCollateral);
+        
+        IPool(POOL).borrow(
+            WSTETH,
+            borrowAmount,
+            2,
+            0,
+            address(this)
+        );
+
+        // Re-invest into the vault to increase leverage
+        bal = IERC20(WSTETH).balanceOf(address(this));
+        IPool(POOL).supply(WSTETH, bal, address(this), 0);
+    }
+    
     function _getLtv() internal view returns(uint256){
         (,,,,uint256 ltv,) = IPool(POOL).getUserAccountData(address(this));
         return ltv;

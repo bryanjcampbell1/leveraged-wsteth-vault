@@ -41,3 +41,4 @@ This will both compile and run tests
 2) Create an upgradeable version of the contracts to be used along with a transparent proxy
 3) Increase test coverage including scenarios where strategies and implementation contracts are updated
 4) Write foundry tests to fuzz over different values of idealDebtToCollateral while deposit/withdraw
+5) Add more quantitative tests by writing predictions in js
