@@ -69,9 +69,11 @@ contract AaveStrategy is IStrategy, Ownable {
         IERC20(A_TOKEN).approve(POOL, 2**256 - 1);
     }
 
+    // ACCESS CONTROLLED PUBLIC FUNCTIONS
+
     /**
      * @dev Withdraws all assets from the strategy to the vault. Can be called by the manager or the vault.
-     *      Transfers the withdrawn WSTETH to the vault.
+     *      Transfers the withdrawn WSTETH to the vault. Useful for preparing vault for a change in strategy.
      */
     function withdrawAllToVault() public onlyVaultOrManager {
         _withdrawAllToStrategy();
@@ -230,7 +232,7 @@ contract AaveStrategy is IStrategy, Ownable {
         return _shares * assetsPerShareNumerator / assetsPerShareDenominator;
     }
 
-    // INTERNAL 
+    // INTERNAL FUNCTIONS
 
     /**
      * @dev Internal function to calculate the assets per share based on the strategy's collateral and debt.
@@ -305,8 +307,8 @@ contract AaveStrategy is IStrategy, Ownable {
     }
     
     /**
-     * @dev Internal function to retrieve the loan-to-value ratio (LTV) of the strategy.
-     * @return ltv The loan-to-value ratio of the strategy.
+     * @dev Internal function to retrieve the max loan-to-value ratio from aave.
+     * @return ltv The max loan-to-value ratio of the strategy.
      */
     function _getLtv() internal view returns(uint256){
         (,,,,uint256 ltv,) = IPool(POOL).getUserAccountData(address(this));

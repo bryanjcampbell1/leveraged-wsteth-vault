@@ -47,7 +47,7 @@ contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
   }
 
   /**
-   * @dev Harvests rewards from the strategy. Only callable by the owner when strategy is defined.
+   * @dev Harvests rewards and re-adjusts stategy leverage. Only callable by the owner when strategy is defined.
    */
   function harvest() public onlyOwner whenStrategyDefined  {
     IStrategy(strategy).harvest();
@@ -84,7 +84,8 @@ contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
     if (shares > maxShares) {
         revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
     }
-
+    require(shares > 0, "ERC4626: cannot mint 0 shares"); 
+    
     uint256 assets = previewMint(shares);
     _deposit(_msgSender(), receiver, assets, shares);
     _invest(assets);
