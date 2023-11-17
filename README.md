@@ -17,7 +17,7 @@ npm i
 Our hardhat.config file makes use of an env var named INFURA_API_KEY
 Create a .env file and add your infura key there. 
 
-Alternatively, feel free to overwrite the url field in hardhat.config with your own rpc url string.
+Alternatively, feel free to overwrite the url field in hardhat.config with your own mainnet rpc url string.
 
 ## Fork mainnet
 

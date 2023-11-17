@@ -10,10 +10,9 @@ import "hardhat/console.sol";
 
 contract AaveStrategy is IStrategy, Ownable {
 
-    address POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
-    address WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-    address A_TOKEN = 0x0B925eD163218f6662a35e0f0371Ac234f9E9371;
-    address V_DEBT = 0xC96113eED8cAB59cD8A66813bCB0cEb29F06D2e4;
+    address public constant POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
+    address public constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
+    address public constant A_TOKEN = 0x0B925eD163218f6662a35e0f0371Ac234f9E9371;
 
     address public vault;
     address public manager;
@@ -201,7 +200,7 @@ contract AaveStrategy is IStrategy, Ownable {
         // Borrow wstETH tokens from Aave 
         uint256 initialCollateral = _aTokensToWstEth(IERC20(A_TOKEN).balanceOf(address(this)));
         uint256 borrowAmount = _getBorrowAmount(initialCollateral);
-        
+
         IPool(POOL).borrow(
             WSTETH,
             borrowAmount,

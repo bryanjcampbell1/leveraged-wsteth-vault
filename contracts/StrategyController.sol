@@ -37,7 +37,6 @@ contract StrategyController is Ownable {
     emit StrategyAnnounced(_strategy, when);
   }
 
-
   function setStrategy(address _strategy) public onlyOwner {
     require(canUpdateStrategy(_strategy), "The strategy exists and switch timelock did not elapse yet");
     require(_strategy != address(0), "new _strategy cannot be empty");
