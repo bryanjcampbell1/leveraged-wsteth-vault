@@ -8,7 +8,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IStrategy} from "../interfaces/IStrategy.sol";
 import "hardhat/console.sol";
 
-contract AaveStrat is IStrategy, Ownable {
+contract AaveStrategy is IStrategy, Ownable {
 
     address POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     address WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
@@ -16,7 +16,7 @@ contract AaveStrat is IStrategy, Ownable {
     address V_DEBT = 0xC96113eED8cAB59cD8A66813bCB0cEb29F06D2e4;
 
     address public vault;
-    address manager;
+    address public manager;
     uint256 public idealDebtToCollateral;
 
     modifier onlyVault() {
@@ -123,6 +123,44 @@ contract AaveStrat is IStrategy, Ownable {
         );
     }
 
+    function harvest2() public onlyVaultOrManager {
+
+        (uint collateralInEth, uint debtInEth ) = _getCollateralAndDebtInEth();
+        uint256 actualDebtToCollateral = 1000 * debtInEth / collateralInEth;
+
+        if(idealDebtToCollateral > actualDebtToCollateral){
+            // Risk On! Borrow ETH and redeposit wstETH
+
+            // Actually this is borrowAmountInEth --> need to convert to wstETH
+            uint256 borrowAmount = (idealDebtToCollateral - actualDebtToCollateral) * collateralInEth;
+
+            // or check if we have hit max borrow ratio
+
+            IPool(POOL).borrow(
+                WSTETH,
+                borrowAmount,
+                2,
+                0,
+                address(this)
+            );
+
+            uint bal = IERC20(WSTETH).balanceOf(address(this));
+
+            IPool(POOL).supply(WSTETH, bal, address(this), 0);
+
+        } else if(idealDebtToCollateral < actualDebtToCollateral){
+            // Risk off! Repay loan to lower leverage
+
+            // Actually this is borrowAmountInEth --> need to convert to wstETH
+            uint256 repayAmount = ((idealDebtToCollateral * collateralInEth) - (1000 * debtInEth)) /  idealDebtToCollateral;
+            IPool(POOL).repay(WSTETH, repayAmount, 2, address(this));
+            
+        } else{
+            return;
+        }
+
+    }
+
     function setDebtToCollateral(uint256 _idealDebtToCollateral) public onlyManager {
         idealDebtToCollateral = _idealDebtToCollateral;
     }
@@ -187,4 +225,5 @@ contract AaveStrat is IStrategy, Ownable {
 
         return _aTokenAmount * totalWstEthInPool / totalATokens;
     }
+
 }

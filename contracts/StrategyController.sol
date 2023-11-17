@@ -50,11 +50,12 @@ contract StrategyController is Ownable {
 
 
   function setStrategy(address _strategy) public onlyOwner {
-    require(canUpdateStrategy(_strategy),
-      "The strategy exists and switch timelock did not elapse yet");
+    require(canUpdateStrategy(_strategy), "The strategy exists and switch timelock did not elapse yet");
     require(_strategy != address(0), "new _strategy cannot be empty");
 
+    strategy = _strategy;
     emit StrategyChanged(_strategy, strategy);
+
     IERC20(underlying).approve(address(strategy), 2**256 - 1);
 
     _setStrategyUpdateTime(0);

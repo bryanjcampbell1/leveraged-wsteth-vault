@@ -41,9 +41,6 @@ contract AaveWrapper {
     // Re-invest into the vault to increase leverage
     bal = IERC20(WSTETH).balanceOf(address(this));
     IPool(POOL).supply(WSTETH, bal, address(this), 0);
-
-    // console.log("aToken balance: ", IERC20(A_TOKEN).balanceOf(address(this)));
-
   }
 
   function withdrawAll() public {
@@ -92,13 +89,6 @@ contract AaveWrapper {
       address(this),
       0
     );
-
-    (uint256 collateral,uint256 debt,,,,) = IPool(POOL).getUserAccountData(address(this));
-
-    console.log("Collateral: ", collateral);
-    console.log("Debt: ", debt);
-    console.log("wstETH balance: ", IERC20(WSTETH).balanceOf(address(this)));
-
   }
 
   function _getLtv() internal view returns(uint256){
@@ -150,50 +140,3 @@ contract AaveWrapper {
     // console.log("totalCollateralBase: ", totalCollateralBase2);
     // console.log("totalDebtBase: ", totalDebtBase2);
     // console.log("wstETH balance: ", IERC20(WSTETH).balanceOf(address(this)));
-
-    //     function harvest() public onlyOwner {
-    //     uint256 actualLeverage = getActualLeverage();
-    //     uint256 lentTotalInEth = getLentAmountInEth();
-    //     //uint256 borrowedTotalInEth = getBorrowedTotalInEth();
-
-    //     if(idealLeverage > actualLeverage){
-    //         // Risk On! Borrow ETH and redeposit wstETH
-
-    //         // !! what if 
-    //         // (1) idealLeverage is not set yet
-    //         // (2) nothing has been lent yet
-    //         // (3) 
-    //         uint256 borrowAmount = (idealLeverage - actualLeverage) * lentTotalInEth;
-
-    //         IPool(POOL).borrow(
-    //             WSTETH,
-    //             borrowAmount,
-    //             2,
-    //             0,
-    //             address(this)
-    //         );
-
-    //         uint bal = IERC20(WSTETH).balanceOf(address(this));
-
-    //         IPool(POOL).supply(WSTETH, bal, address(this), 0);
-
-    //     } else if(idealLeverage < actualLeverage){
-    //         // Risk off! Lower leverage
-    //         // Repay part of loan
-
-    //         // withdraw some lent funds
-    //         // can we withdraw all without fear?
-    //         // doesnt our position need to be sniped by a liquidator?
-    //         uint256 withdrawAmount = 100;
-    //         IPool(POOL).withdraw(WSTETH, withdrawAmount, address(this));
-
-    //         uint256 repayAmount = IERC20(WSTETH).balanceOf(address(this));
-
-    //         // repay loan 
-    //         IPool(POOL).repay(WSTETH, repayAmount, 2, address(this));
-            
-    //     } else{
-    //         return;
-    //     }
-
-    // }

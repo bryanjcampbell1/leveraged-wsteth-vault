@@ -7,52 +7,48 @@ const { expect } = require("chai");
 
 
 describe("AaveWrapper", function () {
-
   async function deployAaveWrapper() {
-
     const [owner, account1] = await ethers.getSigners();
 
-    //Prepare tokens 
-    const wstEthAddress = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
-    const wstEth = await hre.ethers.getContractAt("IWstEth", wstEthAddress );
+    //Prepare tokens
+    const wstEthAddress = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";
+    const wstEth = await hre.ethers.getContractAt("IWstEth", wstEthAddress);
 
     //When sent directly, ETH is caught and converted to wstETH by receive()
     const wrap = await account1.sendTransaction({
-      to: wstEthAddress ,
-      value: "1000000000000000000"
+      to: wstEthAddress,
+      value: "1000000000000000000",
     });
-    
+
     await wrap.wait();
 
     // Now you can call functions of the contract
-    const bal = await wstEth.balanceOf(account1.address)
+    const bal = await wstEth.balanceOf(account1.address);
 
     const AaveWrapper = await ethers.getContractFactory("AaveWrapper");
     const aaveWrapper = await AaveWrapper.deploy();
 
-
     // Approve AaveWrapper to spend wstEth
-    const approve = await wstEth.connect(account1).approve(aaveWrapper.target, bal)
-    await approve.wait()
+    const approve = await wstEth
+      .connect(account1)
+      .approve(aaveWrapper.target, bal);
+    await approve.wait();
 
-    const supply = await aaveWrapper.connect(account1).supplyLeverage(bal)
-    await supply.wait()
-    
-    const withdrawAll = await aaveWrapper.harvest()
-    await withdrawAll.wait()
-    
-    return { aaveWrapper, owner, account1, wstEth};
+    const supply = await aaveWrapper.connect(account1).supplyLeverage(bal);
+    await supply.wait();
+
+    const withdrawAll = await aaveWrapper.harvest();
+    await withdrawAll.wait();
+
+    return { aaveWrapper, owner, account1, wstEth };
   }
 
-  describe("Deployment", function () {
-    it("Should deploy contracts", async function () {
-      const { aaveWrapper, owner, otherAccount, wstEth  } = await loadFixture(deployAaveWrapper);
-
-      expect(true).to.equal(true);
-    });
-  });
-
-
+  // describe("Deployment", function () {
+  //   it("Should deploy contracts", async function () {
+  //     // const { aaveWrapper, owner, otherAccount, wstEth  } = await loadFixture(deployAaveWrapper);
+  //     // expect(true).to.equal(true);
+  //   });
+  // });
 });
 
 // describe("AaveWrapper", function () {

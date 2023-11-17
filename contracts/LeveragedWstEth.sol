@@ -7,15 +7,19 @@ import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {StrategyController} from "./StrategyController.sol";
+import "hardhat/console.sol";
+
 
 contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
 
+  address WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
+
   event Invest(uint256 amount);
 
-  constructor(address underlying) 
+  constructor() 
   ERC20("Leveraged wstETH Vault", "LWSTETH") 
-  ERC4626(IERC20(underlying)) 
-  StrategyController(underlying)  
+  ERC4626(IERC20(WSTETH)) 
+  StrategyController(WSTETH)  
   {}
 
   // ADMIN
@@ -57,8 +61,7 @@ contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
 
   // INTERNAL
   function _invest(uint256 amount) internal whenStrategyDefined {
-    IStrategy(strategy).harvest();
+    IStrategy(strategy).invest(amount);
     emit Invest(amount);
-
   }
 }
