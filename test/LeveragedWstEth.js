@@ -1,12 +1,10 @@
 const {
-  time,
   loadFixture,
 } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
-const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 
 describe("LeveragedWstEth - AaveStrategy", function () {
-  async function prepAccountsAndDeploy() {
+  async function deployContracts() {
     const [owner, manager, user, otherUser] = await ethers.getSigners();
 
     const wstEthAddress = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";
@@ -24,7 +22,7 @@ describe("LeveragedWstEth - AaveStrategy", function () {
     const LeveragedWstEth = await ethers.getContractFactory("LeveragedWstEth");
     const vault = await LeveragedWstEth.deploy();
 
-    const idealDebtToCollateral = 325; // (D/C) = 0.225
+    const idealDebtToCollateral = 325; // (D/C) = 0.325
     const AaveStrategy = await ethers.getContractFactory("AaveStrategy");
     const strategy = await AaveStrategy.deploy(
       vault.target,
@@ -43,58 +41,48 @@ describe("LeveragedWstEth - AaveStrategy", function () {
     return { owner, manager, user, wstEth, vault, strategy, otherUser };
   }
 
+  async function deposit(contract, signer, amountInEthUnits) {
+    expect(
+      await contract
+        .connect(signer)
+        .deposit(BigInt(amountInEthUnits * 10 ** 18), signer.address)
+    ).to.not.be.reverted;
+  }
+
   describe("Deploy", function () {
     it("Should set correct strategy", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
+      const { vault, strategy } = await loadFixture(deployContracts);
       expect(await vault.strategy()).to.equal(strategy.target);
     });
 
     it("Should set correct manager", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
+      const { manager, strategy } = await loadFixture(deployContracts);
       expect(await strategy.manager()).to.equal(manager.address);
     });
 
     it("Should set correct asset", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
+      const { wstEth, vault } = await loadFixture(deployContracts);
       expect(await vault.asset()).to.equal(wstEth.target);
     });
   });
 
   describe("Deposits", function () {
     it("Shouldn't fail during deposit", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
-      expect(await vault.connect(user).deposit(BigInt(10 ** 18), user.address))
-        .to.not.be.reverted;
+      const { user, vault } = await loadFixture(deployContracts);
+      deposit(vault, user, 1);
     });
 
     it("Shouldn't fail during multiple deposits", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
-      expect(await vault.connect(user).deposit(BigInt(10 ** 18), user.address))
-        .to.not.be.reverted;
-
-      expect(await vault.connect(user).deposit(BigInt(10 ** 18), user.address))
-        .to.not.be.reverted;
+      const { user, vault } = await loadFixture(deployContracts);
+      deposit(vault, user, 1);
+      deposit(vault, user, 1);
     });
   });
 
   describe("Withdrawal", function () {
     it("Shouldn't fail during withdrawal", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
-      expect(
-        await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
-      ).to.not.be.reverted;
+      const { user, vault } = await loadFixture(deployContracts);
+      deposit(vault, user, 2);
 
       expect(
         await vault
@@ -106,15 +94,12 @@ describe("LeveragedWstEth - AaveStrategy", function () {
 
   describe("Redeem", function () {
     it("Shouldn't fail during redeem", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
-      expect(
-        await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
-      ).to.not.be.reverted;
+      const { user, vault } = await loadFixture(deployContracts);
+      deposit(vault, user, 1);
 
       const shares = await vault.balanceOf(user);
 
+      // redeem total balance
       expect(
         await vault.connect(user).redeem(shares, user.address, user.address)
       ).to.not.be.reverted;
@@ -123,34 +108,27 @@ describe("LeveragedWstEth - AaveStrategy", function () {
 
   describe("Admin and Manager", function () {
     it("Admin sets new manager", async function () {
-      const { owner, manager, user, wstEth, vault, strategy, otherUser } =
-        await loadFixture(prepAccountsAndDeploy);
-
+      const { strategy, otherUser } = await loadFixture(deployContracts);
       await strategy.setManager(otherUser.address);
       expect(await strategy.manager()).to.equal(otherUser.address);
     });
 
     it("Manager resets idealDebtToCollateral and calls harvest()", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
+      const { manager, user, vault, strategy } = await loadFixture(
+        deployContracts
+      );
 
-      await (
-        await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
-      ).wait();
+      deposit(vault, user, 1);
+
       await (await strategy.connect(manager).setDebtToCollateral(200)).wait();
       expect(await strategy.idealDebtToCollateral()).to.equal(200);
-
       expect(await await strategy.connect(manager).harvest()).to.not.be
         .reverted;
     });
 
     it("Owner pauses contract and prevents deposits", async function () {
-      const { owner, manager, user, wstEth, vault, strategy } =
-        await loadFixture(prepAccountsAndDeploy);
-
-      await (
-        await vault.connect(user).deposit(BigInt(10 ** 18), user.address)
-      ).wait();
+      const { user, vault } = await loadFixture(deployContracts);
+      deposit(vault, user, 1);
 
       await (await vault.pause()).wait();
 
@@ -158,5 +136,4 @@ describe("LeveragedWstEth - AaveStrategy", function () {
         .to.be.reverted;
     });
   });
-
 });
