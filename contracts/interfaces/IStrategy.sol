@@ -4,6 +4,7 @@ pragma solidity 0.8.20;
 interface IStrategy {
     function vault() external view returns (address);
     function manager() external view returns (address);
+    function idealDebtToCollateral() external returns (uint256);
     function withdrawAllToVault() external;
     function withdrawToVault(uint256 amount) external;
     function redeem(uint256 shares) external returns(uint256);

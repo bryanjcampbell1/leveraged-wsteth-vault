@@ -7,7 +7,7 @@ const { expect } = require("chai");
 
 describe("LeveragedWstEth - AaveStrategy", function () {
   async function prepAccountsAndDeploy() {
-    const [owner, manager, user] = await ethers.getSigners();
+    const [owner, manager, user, otherUser] = await ethers.getSigners();
 
     const wstEthAddress = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";
     const wstEth = await hre.ethers.getContractAt("IWstEth", wstEthAddress);
@@ -24,7 +24,7 @@ describe("LeveragedWstEth - AaveStrategy", function () {
     const LeveragedWstEth = await ethers.getContractFactory("LeveragedWstEth");
     const vault = await LeveragedWstEth.deploy();
 
-    const idealDebtToCollateral = 225; // (D/C) = 0.225
+    const idealDebtToCollateral = 325; // (D/C) = 0.225
     const AaveStrategy = await ethers.getContractFactory("AaveStrategy");
     const strategy = await AaveStrategy.deploy(
       vault.target,
@@ -40,7 +40,7 @@ describe("LeveragedWstEth - AaveStrategy", function () {
     const approve = await wstEth.connect(user).approve(vault.target, bal);
     await approve.wait();
 
-    return { owner, manager, user, wstEth, vault, strategy };
+    return { owner, manager, user, wstEth, vault, strategy, otherUser };
   }
 
   describe("Deploy", function () {
@@ -118,6 +118,44 @@ describe("LeveragedWstEth - AaveStrategy", function () {
       expect(
         await vault.connect(user).redeem(shares, user.address, user.address)
       ).to.not.be.reverted;
+    });
+  });
+
+  describe("Admin and Manager", function () {
+    it("Admin sets new manager", async function () {
+      const { owner, manager, user, wstEth, vault, strategy, otherUser } =
+        await loadFixture(prepAccountsAndDeploy);
+
+      await strategy.setManager(otherUser.address);
+      expect(await strategy.manager()).to.equal(otherUser.address);
+    });
+
+    it("Manager resets idealDebtToCollateral and calls harvest()", async function () {
+      const { owner, manager, user, wstEth, vault, strategy } =
+        await loadFixture(prepAccountsAndDeploy);
+
+      await (
+        await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
+      ).wait();
+      await (await strategy.connect(manager).setDebtToCollateral(200)).wait();
+      expect(await strategy.idealDebtToCollateral()).to.equal(200);
+
+      expect(await await strategy.connect(manager).harvest()).to.not.be
+        .reverted;
+    });
+
+    it("Owner pauses contract and prevents deposits", async function () {
+      const { owner, manager, user, wstEth, vault, strategy } =
+        await loadFixture(prepAccountsAndDeploy);
+
+      await (
+        await vault.connect(user).deposit(BigInt(10 ** 18), user.address)
+      ).wait();
+
+      await (await vault.pause()).wait();
+
+      await expect(vault.connect(user).deposit(BigInt(10 ** 18), user.address))
+        .to.be.reverted;
     });
   });
 
