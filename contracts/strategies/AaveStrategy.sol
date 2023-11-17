@@ -53,20 +53,20 @@ contract AaveStrategy is IStrategy, Ownable {
     }
 
     // Called on user withdrawal
-    function redeem(uint256 _amountOfShares) public onlyVault returns(uint256){
+    function redeem(uint256 _shares) public onlyVault returns(uint256){
         _withdrawAllToStrategy();
 
         uint256 totalWstEth = IERC20(WSTETH).balanceOf(address(this));
         uint256 totalVaultShares = IERC20(vault).totalSupply();
 
-        uint256 withdrawAmount = _amountOfShares * totalWstEth / totalVaultShares;
+        uint256 redeemAmount = _shares * totalWstEth / totalVaultShares;
 
         IERC20(WSTETH).transfer(
             vault,
-            withdrawAmount
+            redeemAmount
         );
 
-        return withdrawAmount;
+        return redeemAmount;
     }
 
     function withdrawToVault(uint256 _assets) public onlyVault {
@@ -142,44 +142,6 @@ contract AaveStrategy is IStrategy, Ownable {
         );
     }
 
-    function harvest2() public onlyVaultOrManager {
-
-        (uint collateralInEth, uint debtInEth ) = _getCollateralAndDebtInEth();
-        uint256 actualDebtToCollateral = 1000 * debtInEth / collateralInEth;
-
-        if(idealDebtToCollateral > actualDebtToCollateral){
-            // Risk On! Borrow ETH and redeposit wstETH
-
-            // Actually this is borrowAmountInEth --> need to convert to wstETH
-            uint256 borrowAmount = (idealDebtToCollateral - actualDebtToCollateral) * collateralInEth;
-
-            // or check if we have hit max borrow ratio
-
-            IPool(POOL).borrow(
-                WSTETH,
-                borrowAmount,
-                2,
-                0,
-                address(this)
-            );
-
-            uint bal = IERC20(WSTETH).balanceOf(address(this));
-
-            IPool(POOL).supply(WSTETH, bal, address(this), 0);
-
-        } else if(idealDebtToCollateral < actualDebtToCollateral){
-            // Risk off! Repay loan to lower leverage
-
-            // Actually this is borrowAmountInEth --> need to convert to wstETH
-            uint256 repayAmount = ((idealDebtToCollateral * collateralInEth) - (1000 * debtInEth)) /  idealDebtToCollateral;
-            IPool(POOL).repay(WSTETH, repayAmount, 2, address(this));
-            
-        } else{
-            return;
-        }
-
-    }
-
     function setDebtToCollateral(uint256 _idealDebtToCollateral) public onlyManager {
         idealDebtToCollateral = _idealDebtToCollateral;
     }
@@ -203,6 +165,23 @@ contract AaveStrategy is IStrategy, Ownable {
         uint totalVaultShares = IERC20(vault).totalSupply();
 
         return (_assets * aTokenTotalSupply * collateralInEth * totalVaultShares ) / (wstEthInATokenContract * aTokenBal * netCollateral);
+    }
+
+    function previewRedeem(uint256 _shares) public view onlyVault  returns(uint256) {
+        // How get total wstEth value of shares without withdrawing and checking?
+        // wstEthPerShare = wstEthPerATok * aTokenPerEth * EthPerShare
+        // redeemAmount = _shares * wstEthPerShare = numShares * wstEthPerATok * aTokenPerEth * EthPerShare
+
+        (uint collateralInEth, uint debtInEth ) = _getCollateralAndDebtInEth();
+        uint netCollateral = collateralInEth - debtInEth;
+        if(netCollateral == 0) return 0;
+
+        uint aTokenBal = IERC20(A_TOKEN).balanceOf(address(this));
+        uint wstEthInATokenContract = IERC20(WSTETH).balanceOf(address(A_TOKEN));
+        uint aTokenTotalSupply = IERC20(A_TOKEN).totalSupply();
+        uint totalVaultShares = IERC20(vault).totalSupply();
+
+        return (_shares * wstEthInATokenContract * aTokenBal * netCollateral ) / (aTokenTotalSupply * collateralInEth * totalVaultShares);
     }
 
     // INTERNAL 
@@ -230,7 +209,6 @@ contract AaveStrategy is IStrategy, Ownable {
     }
 
     function _getBorrowAmount(uint256 _collateral) internal view returns(uint256){
-
         uint256 borrow = (_collateral * idealDebtToCollateral) / (1000 - idealDebtToCollateral);
         uint256 maxBorrow = (_getLtv() * _collateral) / 10000;
 

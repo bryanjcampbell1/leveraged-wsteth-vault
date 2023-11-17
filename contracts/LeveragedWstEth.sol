@@ -9,7 +9,6 @@ import {IStrategy} from "./interfaces/IStrategy.sol";
 import {StrategyController} from "./StrategyController.sol";
 import "hardhat/console.sol";
 
-
 contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
 
   address WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
@@ -49,19 +48,26 @@ contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
       return shares;
   }
 
+  function mint(uint256 shares, address receiver) public override returns (uint256) {
+      uint256 maxShares = maxMint(receiver);
+      if (shares > maxShares) {
+          revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
+      }
+
+      uint256 assets = previewMint(shares);
+      _deposit(_msgSender(), receiver, assets, shares);
+      _invest(assets);
+
+      return assets;
+  }
+
   function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
       return IStrategy(strategy).previewWithdrawToVault(assets);
   }
 
   function withdraw(uint256 assets, address receiver, address owner)  public override whenNotPaused returns (uint256) {
-   
     uint256 shares = previewWithdraw(assets);
     IStrategy(strategy).withdrawToVault(assets);
-    
-    uint256 maxAssets = maxWithdraw(owner);
-    if (assets > maxAssets) {
-        revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
-    }
 
     _withdraw(_msgSender(), receiver, owner, assets, shares);
 
@@ -69,7 +75,11 @@ contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
   }
 
   function previewRedeem(uint256 shares) public view override returns (uint256) {
-    //????
+    return IStrategy(strategy).previewRedeem(shares);
+  }
+
+  function totalAssets() public view override returns (uint256) {
+    return previewRedeem(totalSupply());
   }
 
   function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
@@ -79,6 +89,7 @@ contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
       }
 
       uint256 assets = previewRedeem(shares);
+      IStrategy(strategy).redeem(shares);
       _withdraw(_msgSender(), receiver, owner, assets, shares);
 
       return assets;

@@ -57,6 +57,13 @@ describe("LeveragedWstEth - AaveStrategy", function () {
 
       expect(await strategy.manager()).to.equal(manager.address);
     });
+
+    it("Should set correct asset", async function () {
+      const { owner, manager, user, wstEth, vault, strategy } =
+        await loadFixture(prepAccountsAndDeploy);
+
+      expect(await vault.asset()).to.equal(wstEth.target);
+    });
   });
 
   describe("Deposits", function () {
@@ -80,29 +87,39 @@ describe("LeveragedWstEth - AaveStrategy", function () {
     });
   });
 
-  describe("Withdrawals", function () {
+  describe("Withdrawal", function () {
     it("Shouldn't fail during withdrawal", async function () {
       const { owner, manager, user, wstEth, vault, strategy } =
         await loadFixture(prepAccountsAndDeploy);
 
-        expect(
-          await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
-        ).to.not.be.reverted;
+      expect(
+        await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
+      ).to.not.be.reverted;
 
-        console.log("preview: ", await vault.previewWithdraw(BigInt(10 ** 18)));
+      console.log("preview: ", await vault.previewWithdraw(BigInt(10 ** 18)));
 
-        expect(
-          await vault
-            .connect(user)
-            .withdraw(BigInt(10 ** 18), user.address, user.address)
-        ).to.not.be.reverted;
+      expect(
+        await vault
+          .connect(user)
+          .withdraw(BigInt(10 ** 18), user.address, user.address)
+      ).to.not.be.reverted;
+    });
+  });
 
+  describe("Redeem", function () {
+    it("Shouldn't fail during redeem", async function () {
+      const { owner, manager, user, wstEth, vault, strategy } =
+        await loadFixture(prepAccountsAndDeploy);
+
+      expect(
+        await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
+      ).to.not.be.reverted;
+
+      const shares = await vault.balanceOf(user);
+
+      expect(
+        await vault.connect(user).redeem(shares, user.address, user.address)
+      ).to.not.be.reverted;
     });
   });
 });
-
-// const supply = await aaveWrapper.connect(account1).supplyLeverage(bal);
-// await supply.wait();
-
-// const withdrawAll = await aaveWrapper.harvest();
-// await withdrawAll.wait();
