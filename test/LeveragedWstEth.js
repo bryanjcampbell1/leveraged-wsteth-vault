@@ -85,8 +85,18 @@ describe("LeveragedWstEth - AaveStrategy", function () {
       const { owner, manager, user, wstEth, vault, strategy } =
         await loadFixture(prepAccountsAndDeploy);
 
-      expect(await vault.connect(user).deposit(BigInt(10 ** 18), user.address))
-        .to.not.be.reverted;
+        expect(
+          await vault.connect(user).deposit(BigInt(2 * 10 ** 18), user.address)
+        ).to.not.be.reverted;
+
+        console.log("preview: ", await vault.previewWithdraw(BigInt(10 ** 18)));
+
+        expect(
+          await vault
+            .connect(user)
+            .withdraw(BigInt(10 ** 18), user.address, user.address)
+        ).to.not.be.reverted;
+
     });
   });
 });

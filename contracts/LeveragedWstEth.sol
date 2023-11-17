@@ -49,15 +49,40 @@ contract LeveragedWstEth is ERC4626, Pausable, StrategyController  {
       return shares;
   }
 
-  /// @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
   function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
       return IStrategy(strategy).previewWithdrawToVault(assets);
   }
 
-  // /// @dev Preview taking an exit fee on redeem. See {IERC4626-previewRedeem}.
-  // function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
-  //   //????
-  // }
+  function withdraw(uint256 assets, address receiver, address owner)  public override whenNotPaused returns (uint256) {
+   
+    uint256 shares = previewWithdraw(assets);
+    IStrategy(strategy).withdrawToVault(assets);
+    
+    uint256 maxAssets = maxWithdraw(owner);
+    if (assets > maxAssets) {
+        revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+    }
+
+    _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+    return shares;
+  }
+
+  function previewRedeem(uint256 shares) public view override returns (uint256) {
+    //????
+  }
+
+  function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+      uint256 maxShares = maxRedeem(owner);
+      if (shares > maxShares) {
+          revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+      }
+
+      uint256 assets = previewRedeem(shares);
+      _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+      return assets;
+  }
 
   // INTERNAL
   function _invest(uint256 amount) internal whenStrategyDefined {

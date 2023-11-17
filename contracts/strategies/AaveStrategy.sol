@@ -53,7 +53,7 @@ contract AaveStrategy is IStrategy, Ownable {
     }
 
     // Called on user withdrawal
-    function withdrawToVault(uint256 _amountOfShares) public onlyVault {
+    function redeem(uint256 _amountOfShares) public onlyVault returns(uint256){
         _withdrawAllToStrategy();
 
         uint256 totalWstEth = IERC20(WSTETH).balanceOf(address(this));
@@ -65,6 +65,25 @@ contract AaveStrategy is IStrategy, Ownable {
             vault,
             withdrawAmount
         );
+
+        return withdrawAmount;
+    }
+
+    function withdrawToVault(uint256 _assets) public onlyVault {
+        _withdrawAllToStrategy();
+
+        uint256 totalWstEth = IERC20(WSTETH).balanceOf(address(this));
+
+        console.log("_assets: ", _assets);
+        console.log("totalWstEth: ", totalWstEth);
+
+        require(totalWstEth > _assets, "Not enough tokens in strategy"); 
+
+        IERC20(WSTETH).transfer(
+            vault,
+            _assets
+        );
+
     }
 
     function invest(uint256 _amount) public onlyVault {
@@ -169,9 +188,11 @@ contract AaveStrategy is IStrategy, Ownable {
         manager = _manager;
     }
 
-    function previewWithdrawToVault(uint256 _amountOfShares) public view onlyVault  returns(uint256) {
-        // how get total wstEth value of shares without withdrawing and checking?
-        // withdrawAmount = numShares * wstEthPerShare = numShares * wstEthPerATok * aTokenPerEth * EthPerShare
+    function previewWithdrawToVault(uint256 _assets) public view onlyVault  returns(uint256) {
+        // How get total shares burned for _assets fo wstEth?
+
+        // sharePerWstEth = sharePerEth  * ethPerATok * aTokPerWstEth 
+        // totalSharesBurned = _assets * sharePerWstEth = _assets * aTokPerWstEth * ethPerATok * sharesPerEth
 
         (uint collateralInEth, uint debtInEth ) = _getCollateralAndDebtInEth();
 
@@ -181,10 +202,7 @@ contract AaveStrategy is IStrategy, Ownable {
         uint aTokenTotalSupply = IERC20(A_TOKEN).totalSupply();
         uint totalVaultShares = IERC20(vault).totalSupply();
 
-        // wstEthPerATok * aTokenPerEth * EthPerShare
-        // (wstEthInATokenContract / aTokenTotalSupply) * (aTokenBal / collateralInEth) * (netCollateral / totalVaultShares)
-
-        return (_amountOfShares * wstEthInATokenContract * aTokenBal * netCollateral ) / (aTokenTotalSupply * collateralInEth * totalVaultShares);
+        return (_assets * aTokenTotalSupply * collateralInEth * totalVaultShares ) / (wstEthInATokenContract * aTokenBal * netCollateral);
     }
 
     // INTERNAL 
